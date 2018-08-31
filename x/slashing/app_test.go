@@ -27,18 +27,18 @@ func getMockApp(t *testing.T) (*mock.App, stake.Keeper, Keeper) {
 	RegisterWire(mapp.Cdc)
 	keyStake := sdk.NewKVStoreKey("stake")
 	keySlashing := sdk.NewKVStoreKey("slashing")
-	keyParams := sdk.NewKVStoreKey("params")
+
+	tkeyParams := sdk.NewTransientStoreKey("transient_params")
 	bankKeeper := bank.NewBaseKeeper(mapp.AccountMapper)
 	paramsKeeper := params.NewKeeper(mapp.Cdc, keyParams)
-	stakeKeeper := stake.NewKeeper(mapp.Cdc, keyStake, bankKeeper, mapp.RegisterCodespace(stake.DefaultCodespace))
-
-	keeper := NewKeeper(mapp.Cdc, keySlashing, stakeKeeper, paramsKeeper.Getter(), mapp.RegisterCodespace(DefaultCodespace))
+	stakeKeeper := stake.NewKeeper(mapp.Cdc, keyStake, bankKeeper, paramstore, mapp.RegisterCodespace(stake.DefaultCodespace))
+	keeper := NewKeeper(mapp.Cdc, keySlashing, stakeKeeper, paramstore, mapp.RegisterCodespace(DefaultCodespace))
 	mapp.Router().AddRoute("stake", stake.NewHandler(stakeKeeper))
 	mapp.Router().AddRoute("slashing", NewHandler(keeper))
 
 	mapp.SetEndBlocker(getEndBlocker(stakeKeeper))
 	mapp.SetInitChainer(getInitChainer(mapp, stakeKeeper))
-	require.NoError(t, mapp.CompleteSetup([]*sdk.KVStoreKey{keyStake, keySlashing, keyParams}))
+	require.NoError(t, mapp.CompleteSetup(keyStake, keySlashing, keyParams, tkeyParams))
 
 	return mapp, stakeKeeper, keeper
 }

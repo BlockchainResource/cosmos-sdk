@@ -12,6 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/bank"
 	"github.com/cosmos/cosmos-sdk/x/mock"
 	"github.com/cosmos/cosmos-sdk/x/mock/simulation"
+	"github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/stake"
 )
 
@@ -23,7 +24,11 @@ func TestStakeWithRandomMessages(t *testing.T) {
 	mapper := mapp.AccountMapper
 	bankKeeper := bank.NewBaseKeeper(mapper)
 	stakeKey := sdk.NewKVStoreKey("stake")
-	stakeKeeper := stake.NewKeeper(mapp.Cdc, stakeKey, bankKeeper, stake.DefaultCodespace)
+	paramsKey := sdk.NewKVStoreKey("params")
+	paramsTKey := sdk.NewTransientStoreKey("transient_params")
+
+	paramstore := params.NewKeeper(mapp.Cdc, paramsKey, paramsTKey).Subspace(stake.DefaultParamSpace)
+	stakeKeeper := stake.NewKeeper(mapp.Cdc, stakeKey, bankKeeper, paramstore, stake.DefaultCodespace)
 	mapp.Router().AddRoute("stake", stake.NewHandler(stakeKeeper))
 	mapp.SetEndBlocker(func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 		validatorUpdates := stake.EndBlocker(ctx, stakeKeeper)
@@ -32,7 +37,7 @@ func TestStakeWithRandomMessages(t *testing.T) {
 		}
 	})
 
-	err := mapp.CompleteSetup([]*sdk.KVStoreKey{stakeKey})
+	err := mapp.CompleteSetup(stakeKey, paramsKey, paramsTKey)
 	if err != nil {
 		panic(err)
 	}
